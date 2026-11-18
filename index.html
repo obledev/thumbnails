@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thumbnail Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#111016;--panel:#1a1920;--line:#2a2833;--text:#f4f2ee;--mut:#9a97a6;--green:#4ade80;--orange:#fb923c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#111016;}}
+*{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Inter Tight",system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:clamp(30px,5vw,48px);line-height:1.05;margin:0 0 6px;font-weight:700;letter-spacing:-.02em}
+h1 em,.serif{font-family:"Instrument Serif",Georgia,serif;font-style:italic;font-weight:400;color:var(--green)}
+.sub{color:var(--mut);margin:0 0 26px;max-width:560px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:16px}
+label,.lab{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);display:block;margin-bottom:6px}
+textarea,select,input[type=text]{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+textarea{resize:vertical;min-height:70px}
+input[type=range]{width:100%;accent-color:var(--green)}
+.btn{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--mut)}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:8px}
+.sw button{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.sw button i{width:12px;height:12px;border-radius:50%;display:block}
+.sw button.on{border-color:var(--text)}
+#words{display:flex;flex-wrap:wrap;gap:6px;min-height:40px}
+.w{padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-weight:600;user-select:none}
+.w.g{color:#0b2a16;background:var(--green);border-color:var(--green)}
+.w.o{color:#33170a;background:var(--orange);border-color:var(--orange)}
+.hint{font-size:12px;color:var(--mut);margin:0}
+.stage{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.pv{background:#000;border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;justify-content:center}
+canvas{max-width:100%;height:auto;max-height:70vh;border-radius:8px;display:block}
+.msg{font-size:13px;color:var(--mut);min-height:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Make thumbnails that <em>get clicked.</em></h1>
+  <p class="sub">Upload a background, type a short line, then tap words to highlight them in green or orange.</p>
+  <div class="grid">
+    <div class="panel">
+      <div><span class="lab">Background image</span>
+        <div class="row"><button class="btn" id="pick">Choose image</button><button class="btn" id="clear">Clear</button></div>
+        <input type="file" id="file" accept="image/*,video/*" hidden>
+        <div id="fr" hidden style="margin-top:12px"><label for="frame">Video frame <span id="ft"></span></label><input type="range" id="frame" min="0" max="1" step="0.01" value="0"></div></div>
+      <div><label for="txt">Overlay text</label>
+        <textarea id="txt">I build the part users never see</textarea></div>
+      <div><span class="lab">Highlight color (tap words below)</span>
+        <div class="sw" id="sw">
+          <button data-c="g" class="on"><i style="background:var(--green)"></i>Green</button>
+          <button data-c="o"><i style="background:var(--orange)"></i>Orange</button>
+        </div></div>
+      <div><span class="lab">Words</span><div id="words"></div>
+        <p class="hint">Tap a word to highlight it. Tap again to remove.</p></div>
+      <div><label for="blur">Blur <span id="bv"></span></label><input type="range" id="blur" min="0" max="60" value="22"></div>
+      <div><label for="dim">Darken <span id="dv"></span></label><input type="range" id="dim" min="0" max="90" value="45"></div>
+      <div><label for="size">Text size <span id="sv"></span></label><input type="range" id="size" min="50" max="140" value="100"></div>
+      <div><label for="align">Text anchor</label>
+        <select id="align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></div>
+      <div><label for="voff">Vertical offset <span id="ov"></span></label><input type="range" id="voff" min="-50" max="50" value="0"></div>
+      <div><label for="fmt">Canvas size</label>
+        <select id="fmt">
+          <option value="1080x1920" selected>1080 × 1920 (Instagram Reel / Story, 9:16)</option>
+          <option value="1080x1350">1080 × 1350 (Instagram post, 4:5)</option>
+          <option value="1080x1080">1080 × 1080 (Square)</option>
+          <option value="1280x720">1280 × 720 (YouTube)</option>
+        </select></div>
+      <button class="btn primary" id="dl">Download PNG</button>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="stage"><div class="pv"><canvas id="cv"></canvas></div></div>
+  </div>
+</div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var cv=$("cv"),ctx=cv.getContext("2d"),img=null,marks={},color="g";
+var COL={g:"#4ade80",o:"#fb923c"};
+var SANS='"Inter Tight",system-ui,sans-serif',SERIF='"Instrument Serif",Georgia,serif';
+
+function words(){var out=[];$("txt").value.replace(/\r/g,"").split("\n").forEach(function(l,n){if(n)out.push("\n");l.split(/[ \t]+/).filter(Boolean).forEach(function(w){out.push(w)})});return out}
+function renderChips(){
+  var box=$("words");box.textContent="";
+  words().forEach(function(w,i){
+    if(w==="\n"){var br=document.createElement("div");br.style.flexBasis="100%";br.style.height="0";box.appendChild(br);return}
+    var s=document.createElement("span");s.className="w"+(marks[i]?" "+marks[i]:"");
+    s.textContent=w;
+    s.onclick=function(){marks[i]=(marks[i]===color)?null:color;renderChips();draw()};
+    box.appendChild(s);
+  });
+}
+function drawBg(W,H){
+  var b=+$("blur").value,d=+$("dim").value/100;
+  ctx.fillStyle="#111016";ctx.fillRect(0,0,W,H);
+  if(img){
+    var iw=img.videoWidth||img.width,ih=img.videoHeight||img.height,sc=Math.max(W/iw,H/ih)*(1+b/200),w=iw*sc,h=ih*sc;
+    ctx.save();ctx.filter="blur("+(b*W/1280)+"px)";
+    ctx.drawImage(img,(W-w)/2,(H-h)/2,w,h);ctx.restore();
+  }else{
+    var g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,"#26233a");g.addColorStop(1,"#10231a");
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+  ctx.fillStyle="rgba(17,16,22,"+d+")";ctx.fillRect(0,0,W,H);
+}
+function layout(ws,fs,maxW){
+  var lines=[[]],cur=0,sp=fs*.28;
+  ws.forEach(function(o){
+    if(o.nl){lines.push([]);cur=0;return}
+    ctx.font=o.m?("italic 400 "+(fs*1.12)+"px "+SERIF):("800 "+fs+"px "+SANS);
+    o.w=ctx.measureText(o.t).width;
+    var L=lines[lines.length-1];
+    if(L.length&&cur+sp+o.w>maxW){lines.push([o]);cur=o.w}
+    else{L.push(o);cur+=(L.length>1?sp:0)+o.w}
+  });
+  return lines;
+}
+function draw(){
+  var p=$("fmt").value.split("x"),W=+p[0],H=+p[1];
+  cv.width=W;cv.height=H;
+  $("bv").textContent=$("blur").value;$("dv").textContent=$("dim").value+"%";$("sv").textContent=$("size").value+"%";$("ov").textContent=$("voff").value+"%";
+  drawBg(W,H);
+  var ws=words().map(function(t,i){return t==="\n"?{nl:true}:{t:t,m:marks[i]}});
+  if(!ws.length)return;
+  var maxW=W*.82,maxH=H*.7,fs=Math.min(W,H)*.2*(+$("size").value/100),lines;
+  for(;fs>16;fs-=4){lines=layout(ws,fs,maxW);if(lines.length*fs*1.15<=maxH)break}
+  lines=layout(ws,fs,maxW);
+  var lh=fs*1.15,y=(H-lines.length*lh)/2+lh/2+$("voff").value/100*H,sp=fs*.28;
+  ctx.textBaseline="middle";ctx.textAlign="left";
+  lines.forEach(function(L,li){
+    var yy=y+li*lh,tw=L.reduce(function(a,o,i){return a+o.w+(i?sp:0)},0),al=$("align").value,x=al==="left"?W*.09:al==="right"?W-W*.09-tw:(W-tw)/2;
+    L.forEach(function(o){
+      ctx.font=o.m?("italic 400 "+(fs*1.12)+"px "+SERIF):("800 "+fs+"px "+SANS);
+      ctx.fillStyle=o.m?COL[o.m]:"#f4f2ee";
+      ctx.shadowColor="rgba(0,0,0,.35)";ctx.shadowBlur=fs*.15;
+      ctx.fillText(o.t,x,yy);x+=o.w+sp;
+    });
+  });
+  ctx.shadowBlur=0;
+}
+$("txt").oninput=function(){marks={};renderChips();draw()};
+var KEYS=["blur","dim","size","fmt","align","voff"],SK="thumbmaker.v1";
+function save(){try{var o={};KEYS.forEach(function(k){o[k]=$(k).value});o.color=color;localStorage.setItem(SK,JSON.stringify(o))}catch(e){}}
+function load(){try{var o=JSON.parse(localStorage.getItem(SK)||"null");if(!o)return;KEYS.forEach(function(k){if(o[k]!=null)$(k).value=o[k]});if(o.color){color=o.color;[].forEach.call($("sw").children,function(x){x.classList.toggle("on",x.dataset.c===color)})}}catch(e){}}
+KEYS.forEach(function(i){$(i).oninput=function(){draw();save()}});
+$("sw").onclick=function(e){var b=e.target.closest("button");if(!b)return;color=b.dataset.c;save();
+  [].forEach.call($("sw").children,function(x){x.classList.toggle("on",x===b)})};
+$("pick").onclick=function(){$("file").click()};
+$("clear").onclick=function(){img=null;$("fr").hidden=true;draw()};
+$("file").onchange=function(){
+  var f=this.files[0];if(!f)return;var u=URL.createObjectURL(f);
+  if(f.type.indexOf("video")===0){
+    var v=document.createElement("video");v.muted=true;v.playsInline=true;v.preload="auto";
+    v.onloadedmetadata=function(){var d=v.duration||1;$("frame").max=d;$("frame").value=Math.min(0.1,d/2);$("ft").textContent=(+$("frame").value).toFixed(1)+"s";$("fr").hidden=false;v.currentTime=+$("frame").value};
+    v.onseeked=function(){img=v;draw()};
+    v.src=u;v.load();
+  }else{
+    $("fr").hidden=true;var im=new Image();
+    im.onload=function(){img=im;draw()};im.src=u;
+  }
+};
+$("frame").oninput=function(){if(img&&img.videoWidth){img.currentTime=+this.value;$("ft").textContent=(+this.value).toFixed(1)+"s"}};
+$("dl").onclick=function(){
+  var m=$("msg");m.textContent="";
+  cv.toBlob(async function(blob){
+    try{
+      var d=null;try{d=await claude.use("downloads")}catch(e){}
+      if(d){await d.save({filename:"thumbnail.png",data:blob});m.textContent="Saved."}
+      else{var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="thumbnail.png";a.click();
+        m.textContent="If nothing downloaded, long-press or right-click the preview and choose Save image."}
+    }catch(e){m.textContent=(e&&e.code==="declined")?"Cancelled.":"Could not save. Try right-click on the preview, Save image."}
+  },"image/png");
+};
+load();renderChips();draw();
+if(document.fonts){Promise.all([document.fonts.load('800 40px "Inter Tight"'),document.fonts.load('italic 40px "Instrument Serif"')]).then(draw).catch(function(){})}
+})();
+</script>
+</body>
+</html>
